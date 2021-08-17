@@ -12,6 +12,7 @@ def clear_board():
             new_board[x][y] = button
     return new_board
 
+#Choosing the square
 def choose_square(x, y):
     board_squares[x][y].text = turn
     board_squares[x][y].disable()
@@ -81,10 +82,10 @@ def moves_taken():
     return moves
 
         
-# Variables -------------
+# Variables 
 turn = "X"
 
-# App -------------------
+# App 
 app = App("Tic tac toe")
 
 board = Box(app, layout="grid")
