@@ -64,3 +64,6 @@ customer3 = Customer("Customer3", 20000)
 
 # Simulate transactions
 simulate_transactions([customer1, customer2, customer3], [merchant1, merchant2], [bank1, bank2], 10)
+
+
+
