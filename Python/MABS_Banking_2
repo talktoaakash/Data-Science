@@ -1,0 +1,85 @@
+import random
+
+class Customer:
+    def __init__(self, id):
+        self.id = id
+        self.arrival_time = 0
+        self.wait_time = 0
+    
+    def enter_bank(self, time):
+        self.arrival_time = time
+    
+    def start_service(self, time):
+        self.wait_time = time - self.arrival_time
+
+class BankTeller:
+    def __init__(self, id):
+        self.id = id
+        self.is_busy = False
+        self.start_time = 0
+        self.customer = None
+    
+    def start_service(self, customer, time):
+        self.customer = customer
+        self.is_busy = True
+        self.start_time = time
+    
+    def end_service(self):
+        self.customer = None
+        self.is_busy = False
+        self.start_time = 0
+
+class Bank:
+    def __init__(self, num_tellers):
+        self.customers = []
+        self.tellers = []
+        for i in range(num_tellers):
+            self.tellers.append(BankTeller(i))
+    
+    def generate_customers(self, num_customers, arrival_rate):
+        for i in range(num_customers):
+            customer = Customer(i)
+            self.customers.append(customer)
+            arrival_time = random.expovariate(arrival_rate)
+            customer.enter_bank(arrival_time)
+    
+    def run_simulation(self, service_rate):
+        time = 0
+        while self.customers:
+            # Check for available tellers
+            available_tellers = [t for t in self.tellers if not t.is_busy]
+            
+            # Update waiting times for customers
+            for c in self.customers:
+                if c.wait_time == 0 and c.arrival_time <= time:
+                    if available_tellers:
+                        teller = random.choice(available_tellers)
+                        teller.start_service(c, time)
+                    else:
+                        c.wait_time += 1
+                elif c.wait_time > 0:
+                    c.wait_time += 1
+            
+            # End service for completed transactions
+            for t in self.tellers:
+                if t.is_busy:
+                    if time - t.start_time >= random.expovariate(service_rate):
+                        t.customer.start_service(time)
+                        t.end_service()
+            
+            # Remove completed customers from the list
+            self.customers = [c for c in self.customers if c.wait_time == 0]
+            
+            # Increment simulation time
+            time += 1
+    
+    def print_results(self):
+        total_wait_time = sum([c.wait_time for c in self.customers])
+        avg_wait_time = total_wait_time / len(self.customers)
+        print("Average customer wait time:", avg_wait_time)
+
+# Example usage
+bank = Bank(num_tellers=2)
+bank.generate_customers(num_customers=100, arrival_rate=0.5)
+bank.run_simulation(service_rate=0.25)
+bank.print_results()
