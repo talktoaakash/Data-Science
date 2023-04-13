@@ -1,0 +1,66 @@
+import random
+
+class Agent:
+    def __init__(self, name, balance):
+        self.name = name
+        self.balance = balance
+
+    def transfer_money(self, recipient, amount):
+        if self.balance >= amount:
+            self.balance -= amount
+            recipient.balance += amount
+            return True
+        else:
+            return False
+
+class Bank(Agent):
+    def __init__(self, name, balance, interest_rate):
+        super().__init__(name, balance)
+        self.interest_rate = interest_rate
+
+    def collect_interest(self):
+        self.balance *= 1 + self.interest_rate
+
+class Merchant(Agent):
+    def __init__(self, name, balance):
+        super().__init__(name, balance)
+
+class Customer(Agent):
+    def __init__(self, name, balance):
+        super().__init__(name, balance)
+
+class PaymentTransaction:
+    def __init__(self, sender, recipient, amount):
+        self.sender = sender
+        self.recipient = recipient
+        self.amount = amount
+
+    def execute(self):
+        success = self.sender.transfer_money(self.recipient, self.amount)
+        if success:
+            print(f"{self.sender.name} transferred {self.amount} to {self.recipient.name}")
+        else:
+            print(f"Transaction failed: {self.sender.name} has insufficient balance")
+
+def simulate_transactions(customers, merchants, banks, num_transactions):
+    for i in range(num_transactions):
+        sender = random.choice(customers)
+        recipient = random.choice(merchants + banks)
+        amount = random.randint(1, sender.balance)
+        transaction = PaymentTransaction(sender, recipient, amount)
+        transaction.execute()
+        for agent in [sender, recipient]:
+            if isinstance(agent, Bank):
+                agent.collect_interest()
+
+# Create agents
+bank1 = Bank("Bank1", 1000000, 0.05)
+bank2 = Bank("Bank2", 2000000, 0.03)
+merchant1 = Merchant("Merchant1", 0)
+merchant2 = Merchant("Merchant2", 0)
+customer1 = Customer("Customer1", 1000)
+customer2 = Customer("Customer2", 5000)
+customer3 = Customer("Customer3", 20000)
+
+# Simulate transactions
+simulate_transactions([customer1, customer2, customer3], [merchant1, merchant2], [bank1, bank2], 10)
