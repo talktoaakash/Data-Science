@@ -1,0 +1,62 @@
+# Import necessary libraries
+import random
+from mesa import Model, Agent
+from mesa.time import RandomActivation
+from mesa.space import MultiGrid
+
+# Define the agent class for banks
+class BankAgent(Agent):
+    def __init__(self, unique_id, model):
+        super().__init__(unique_id, model)
+        self.capital = 1000  # initial capital for each bank agent
+
+    def step(self):
+        # bank agent strategy to manage their capital
+        if self.capital < 500:
+            self.lend()
+        elif self.capital > 1500:
+            self.borrow()
+
+    def lend(self):
+        # randomly select another bank agent to lend money to
+        other_agent = random.choice(self.model.schedule.agents)
+        if other_agent.capital < 2000:
+            amount = random.randint(100, 200)
+            self.capital -= amount
+            other_agent.capital += amount
+
+    def borrow(self):
+        # randomly select another bank agent to borrow money from
+        other_agent = random.choice(self.model.schedule.agents)
+        if other_agent.capital > 1000:
+            amount = random.randint(100, 200)
+            self.capital += amount
+            other_agent.capital -= amount
+
+# Define the model class for the banking industry scenario
+class BankingModel(Model):
+    def __init__(self, num_agents):
+        self.num_agents = num_agents
+        self.schedule = RandomActivation(self)
+        self.grid = MultiGrid(10, 10, True)  # create a grid to place agents
+        # create and add bank agents to the model
+        for i in range(self.num_agents):
+            a = BankAgent(i, self)
+            self.schedule.add(a)
+            x = random.randrange(self.grid.width)
+            y = random.randrange(self.grid.height)
+            self.grid.place_agent(a, (x, y))
+
+    def step(self):
+        self.schedule.step()
+
+# Run the simulation
+num_agents = 20  # number of bank agents in the simulation
+num_steps = 100  # number of simulation steps to run
+model = BankingModel(num_agents)
+for i in range(num_steps):
+    model.step()
+
+# Print the final capital of each bank agent
+for agent in model.schedule.agents:
+    print("Agent {} has final capital of {}".format(agent.unique_id, agent.capital))
