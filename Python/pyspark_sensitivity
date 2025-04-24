@@ -1,0 +1,83 @@
+mport matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from pyspark.sql import functions as F
+from pyspark.sql.types import StringType
+
+def bin_variable(df, col, n_bins=10):
+distinct_count = df.select(col).distinct().count()
+if distinct_count <= n_bins:
+return df.withColumn(f"{col}_bin", F.col(col).cast(StringType()))
+
+quantiles = df.approxQuantile(col, [i / n_bins for i in range(n_bins + 1)], 0.01)
+quantiles = sorted(set(quantiles))
+if len(quantiles) <= 1:
+return df.withColumn(f"{col}_bin", F.lit(f"[{quantiles[0]}, {quantiles[0]}]"))
+
+def assign_bin(val):
+for i in range(len(quantiles) - 1):
+if quantiles[i] <= val < quantiles[i + 1]:
+return f"<{quantiles[i+1]:.2f}"
+return f"<inf"
+
+from pyspark.sql.functions import udf
+return df.withColumn(f"{col}_bin", udf(assign_bin, StringType())(F.col(col)))
+
+def plot_side_by_side_with_counts(
+df, variable, actual_col, pit_col, date_col, cutoff_date, n_bins=10
+):
+df_dev_oot = df.filter(F.col(date_col) <= F.lit(cutoff_date))
+df_post_oot = df.filter(F.col(date_col) > F.lit(cutoff_date))
+
+def prep_data(sub_df):
+binned_df = bin_variable(sub_df, variable, n_bins)
+bin_col = f"{variable}_bin"
+agg_df = (
+binned_df.groupBy(bin_col)
+.agg(
+F.avg(actual_col).alias("actual_pd"),
+F.avg(pit_col).alias("pit_pd"),
+(F.count("*") / 1000).alias("count_k") # scale for secondary axis
+)
+.orderBy(bin_col)
+.toPandas()
+)
+return agg_df
+
+dev_pd = prep_data(df_dev_oot)
+post_pd = prep_data(df_post_oot)
+
+fig, axes = plt.subplots(1, 2, figsize=(18, 6), sharey=True)
+
+for ax, data, title in zip(axes, [dev_pd, post_pd], ['In-time + OOT', 'Post-OOT']):
+bar_width = 0.35
+x = range(len(data))
+
+ax.bar([i - bar_width/2 for i in x], data['actual_pd'], width=bar_width, label="Actual default rate")
+ax.bar([i + bar_width/2 for i in x], data['pit_pd'], width=bar_width, label="PIT PD")
+
+ax2 = ax.twinx()
+ax2.plot(x, data['count_k'], color='gray', label='count (right)', marker='o')
+
+ax.set_xticks(x)
+ax.set_xticklabels(data[f"{variable}_bin"], rotation=45)
+ax.set_title(title)
+ax.set_ylabel("Default Rate")
+ax2.set_ylabel("Count (in thousand)")
+
+plt.suptitle(f"Actual and predicted PD by {variable}")
+axes[1].legend(loc='upper right')
+axes[0].legend(loc='upper right')
+plt.tight_layout()
+plt.show()
+
+
+plot_side_by_side_with_counts(
+df=my_spark_df,
+variable="loan_age", # replace with your variable
+actual_col="actual_pd", # binary flag
+pit_col="pit_pd", # predicted PD
+date_col="snapshot_date", # column with date
+cutoff_date="2023-12-31",
+n_bins=10
+)
