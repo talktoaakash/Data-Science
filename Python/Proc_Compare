@@ -1,0 +1,38 @@
+import pandas as pd
+
+def compare_dataframes(df1, df2, keys=None):
+    """
+    Compare two pandas DataFrames and return summary of mismatches like PROC COMPARE.
+    
+    Args:
+        df1: First DataFrame
+        df2: Second DataFrame
+        keys: Optional list of key columns to align on before comparing
+        
+    Returns:
+        A summary DataFrame of differences.
+    """
+    # Align on keys if provided
+    if keys:
+        df1 = df1.set_index(keys).sort_index()
+        df2 = df2.set_index(keys).sort_index()
+    
+    # Ensure same columns and order
+    df1, df2 = df1[df2.columns], df2
+    
+    # Compare values
+    diff = df1.compare(df2, keep_shape=True, keep_equal=False)
+    
+    # Create a summary of column-wise difference counts
+    summary = {}
+    for col in df1.columns:
+        if col in diff.columns.get_level_values(0):
+            count = diff[col].dropna().shape[0] // 2  # divide by 2 since each has 'self' and 'other'
+            summary[col] = count
+        else:
+            summary[col] = 0
+    
+    summary_df = pd.DataFrame.from_dict(summary, orient='index', columns=['Mismatch_Count'])
+    summary_df = summary_df.sort_values(by='Mismatch_Count', ascending=False)
+    
+    return summary_df, diff
